@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Mapbox with Popups</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.11.0/mapbox-gl.css" rel="stylesheet">
+  <style>
+    body { margin: 0; padding: 0; }
+    #map { width: 100%; height: 100vh; }
+    .mapboxgl-popup { max-width: 300px; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.11.0/mapbox-gl.js"></script>
+  <script>
+    mapboxgl.accessToken = 'pk.eyJ1IjoicmNoYWRoYTMzIiwiYSI6ImNsb296ZHB6ejAydjIyanB0em5tb2tlN3UifQ.3O7_wv9OO6UJQ_DO9cm1yw';
+
+    const map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/rchadha33/cm368a8a3019201pae2j69wkq',
+      center: [-110.706208, 37.259289],
+      zoom: 2
+        });
+
+    map.on('load', () => {
+      map.addSource('buoys', {
+        type: 'geojson',
+        data: 'flattened_buoy_data.geojson'
+      });
+
+      map.addLayer({
+        id: 'buoy-layer',
+        type: 'circle',
+        source: 'buoys',
+        paint: {
+          'circle-radius': 5,
+          'circle-color': 'transparent',
+          'circle-stroke-width': 0,
+          'circle-stroke-color': '#fff'
+        }
+      });
+
+      const popup = new mapboxgl.Popup({
+        closeButton: false,
+        closeOnClick: false
+      });
+
+      map.on('mouseenter', 'buoy-layer', (e) => {
+        if (!e.features.length) return;
+
+        const feature = e.features[0];
+        const coordinates = feature.geometry.coordinates.slice();
+        const properties = feature.properties;
+
+        // Start popup content with Buoy ID
+        let popupContent = `<h3>Buoy ID: ${properties.id || 'Unknown'}</h3>`;
+
+        // Power and yearly energy data with custom styling for both label and value
+        if (properties.Power && properties.Power !== "N/A") {
+          const powerKW = (properties.Power / 1000).toFixed(2);  // Convert to kW
+          const energyPerYear = (properties.Power * 8760 / 1000).toFixed(2);  // kWh per year
+
+          popupContent += `<strong style="color: maroon;">Power (per second):</strong> <span style="color: maroon;">${powerKW} kW</span><br>`;
+          popupContent += `<strong style="color: green;">Energy (per year):</strong> <span style="color: green;">${energyPerYear} kWh</span><br>`;
+        } else {
+          popupContent += `<strong>Power:</strong> No Data<br>`;
+        }
+
+        // Wave Height
+        if (properties.wvht && properties.wvht !== "N/A") {
+          popupContent += `<strong>Wave Height:</strong> ${properties.wvht} m<br>`;
+        } else {
+          popupContent += `<strong>Wave Height:</strong> No Data<br>`;
+        }
+
+        // Water Temperature
+        if (properties.wtmp && properties.wtmp !== "N/A") {
+          popupContent += `<strong>Water Temp:</strong> ${properties.wtmp} °C<br>`;
+        } else {
+          popupContent += `<strong>Water Temp:</strong> No Data<br>`;
+        }
+
+        // Display other attributes dynamically if they exist
+        for (const key in properties) {
+          if (!['id', 'Power', 'wvht', 'wtmp'].includes(key)) {
+            popupContent += `<strong>${key}:</strong> ${properties[key] || 'No Data'}<br>`;
+          }
+        }
+
+        // Set popup content and location
+        popup.setLngLat(coordinates).setHTML(popupContent).addTo(map);
+      });
+
+      map.on('mouseleave', 'buoy-layer', () => {
+        map.getCanvas().style.cursor = '';
+        popup.remove();
+      });
+
+      map.on('mousemove', 'buoy-layer', () => {
+        map.getCanvas().style.cursor = 'pointer';
+      });
+    });
+  </script>
+</body>
+</html>
